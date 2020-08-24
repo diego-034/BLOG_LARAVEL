@@ -1,0 +1,44 @@
+***********************REQUISITOS************************
++ PHP >= 7.2.5
++ Composer
++ Verificar requerimientos para instalar laravel
++ Clonar este repositorio
++ Tener conexión a Internet
+*********************************************************
+_________________________________________________________
+INSTRUCCIONES PARA INSTALACIÓN DE LOS RECURSOS NECESARIOS
+	 PARA CONSUMIR EL APlICATIVO DE LARAVEL
+_________________________________________________________
+
+*********************************************************
+1.Clonar el repositorio de GitHub
+
+2.Instalar las dependencias de Composer
+
+	a.Ir a la página oficial y descargar el 
+	  ejecutable(https://getcomposer.org/download/)
+	b.Instalar laravel por composer con el comando
+	  "composer global require laravel/installer"
+	c.Ir a la ruta del repositorio clonado en la
+	  carpeta Blog
+	d.Ejecutar el comando "composer install"
+	e.Crear archivo .env
+	f.Copiar las configuraciones del archivo envexample
+	g.Generar key con php artisan key:generate
+	h.Verificar si no hay errores
+
+5.Entrar a la carpeta Blog y configurar el archivo .env
+  como el archivo .env.example
+
+6.Ejecutar las migraciones en laravel
+	a.Entrar a la ruta de la carpeta Blog y ejecutar 
+	  el comando "php artisan migrate:fresh"
+	b.Verificar si se ejecutaron sin problemas
+
+7.Verificar que laravel se ejecute en el puerto 8000
+
+10.Iniciar laravel 
+	a.Ir a la ruta de la carpeta Blog
+	b.Ejecutar "php artisan serve"
+	c.Verificar si no hay errores
+____________________________________________________
