@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Http\Request;
 use App\Repositories\IRepository\IModelRepository;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+
 use Exception;
+use Illuminate\Support\Facades\Auth;
 
 class PostController extends Controller
 {
@@ -17,19 +21,34 @@ class PostController extends Controller
     {
         $this->IModelRepository = $IModelRepository;
         $this->Post = new Post();
+        $this->middleware('auth');
     }
 
     public function List(Request $params)
     {
         try {
-            $data['Model'] = $this->Post;
-            $response = $this->IModelRepository->List($data);
-            if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+            $response['OK'] = DB::table('posts')
+                ->join(
+                    'users',
+                    'posts.user_id',
+                    '=',
+                    'users.id'
+                )->select([
+                    'posts.post_title',
+                    'posts.post_body',
+                    'posts.id as post_id',
+                    'users.name',
+                    'users.id as user_id'
+                ])
+                ->orderBy('posts.id', 'desc')
+                ->get();
+
+            if ($response['OK'] == null) {
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "List OK");
+            return view('home')->with('response', $response);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
@@ -42,19 +61,20 @@ class PostController extends Controller
             ]);
 
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
 
             $data = $params->all();
+            $data['user_id'] = Auth::id();
             $data['Model'] = $this->Post;
             $response = $this->IModelRepository->Insert($data);
 
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Insert OK");
+            return Redirect::route('home');
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
@@ -62,7 +82,7 @@ class PostController extends Controller
     {
         try {
             if ($id == null) {
-                return $this->SendError("Error", ["Null"], 422);
+                throw new Exception('Error');
             }
             $response = Validator::make($params->all(), [
                 'post_title' => 'required|string',
@@ -70,8 +90,9 @@ class PostController extends Controller
             ]);
 
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
+            $this->authorize('update_delete', Post::find($id));
             $data = array();
             $data['Entity']['id'] = $id;
             $data['Entity']['post_title'] = $params->get('post_title');
@@ -79,37 +100,42 @@ class PostController extends Controller
             $data['Model'] = $this->Post;
             $response = $this->IModelRepository->Update($data);
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Update OK");
+            return Redirect::route('posts', ['id' => Auth::id()]);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
     public function Delete(Request $params)
     {
         try {
+
             $response = Validator::make($params->all(), [
                 'post_id' => 'required|numeric'
             ]);
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
+            $id =  $params->get('post_id');
+            $this->authorize('update_delete', Post::find($id));
             $data = array();
             $data['id'] = $params->get('post_id');
+            $response = DB::table('comments')->where('post_id', '=', $data['id'])->delete();
+
             $data['Model'] = $this->Post;
             $response = $this->IModelRepository->Delete($data);
 
             if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
+                throw new Exception('Error');
             }
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Delete OK");
+            return Redirect::route('posts',['id'=>Auth::id()]);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
@@ -119,50 +145,56 @@ class PostController extends Controller
             if ($id == null) {
                 return $this->SendError("Error", ["Null"], 422);
             }
-            $data = array();
-            $data['id'] = $id;
-            $data['Model'] = $this->Post;
-            $response = $this->IModelRepository->Find($data);
+            $response['P'] = DB::table('posts')->join(
+                'users',
+                'posts.user_id',
+                '=',
+                'users.id'
+            )->select([
+                'users.name',
+                'users.id as user_id',
+                'posts.id as post_id',
+                'posts.post_title',
+                'posts.post_body'
+            ])->where('posts.id', '=', $id)->get();
 
-            if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
+            $response['C'] = DB::table('comments')->join('users', 'comments.user_id', '=', 'users.id')
+                ->select(['*'])->where('post_id', '=', $id)->get();
+
+            if ($response['P'] == null) {
+                throw new Exception('Error');
             }
-            if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
-            }
-            return $this->SendResponse($response['OK'], "Find OK");
+            return view('post')->with('response', $response);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
-    public function Consult(Request $params)
+    public function Consult($id)
     {
         try {
-            $data = array(
-                "Option"=>"S_IJ",
-                "Table" => "posts",
-                "Table2" => "users",
-                "Col" => "users.id",
-                "Col2" => "posts.user_id",
-                "OP" => "=",
-                "Columns"=>[
-                    0=>"posts.post_title",
-                    1=>"posts.post_body",
-                    2=>"users.name",
-                    3=>"users.lastname",
-                ]);
-            $response = $this->IModelRepository->Consult($data);
-
-            if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
-            }
+            $response['OK'] = DB::table('posts')
+                ->join(
+                    'users',
+                    'posts.user_id',
+                    '=',
+                    'users.id'
+                )->select([
+                    'posts.post_title',
+                    'posts.post_body',
+                    'posts.id as post_id',
+                    'users.name',
+                    'users.id as user_id'
+                ])->where('posts.user_id', '=', $id)
+                ->orderBy('posts.id', 'desc')
+                ->get();
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Find OK");
+
+            return view('home')->with('response', $response);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 }

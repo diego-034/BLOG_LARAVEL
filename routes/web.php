@@ -13,14 +13,22 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/',"HomeController@index");
+Route::get('/', function () {
+    return view('welcome');
+});
 
-Route::get('/signin',"HomeController@signin");
+Auth::routes();
 
-Route::get('/login', "HomeController@login");
+Route::get('/home', 'PostController@List')->name('home');
+Route::get('/profile/{id}', 'UserController@Find')->name('profile');
+Route::get('/post/{id}', 'PostController@Find')->name('post');
+Route::post('/post/update/{id}', 'PostController@Update');
+Route::delete('/post', 'PostController@Delete')->name('post');
+Route::get('/posts/{id}', 'PostController@Consult')->name('posts');
 
-Route::get('/home','HomeController@home');
+Route::post('/publish', 'PostController@Insert');
+Route::post('/comment', 'CommentController@Insert');
 
-Route::get('/profile','HomeController@profile');
 
-Route::get('/exit','HomeController@exit');
+
+

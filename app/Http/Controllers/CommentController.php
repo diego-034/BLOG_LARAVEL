@@ -6,8 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Comment;
 use App\Repositories\IRepository\IModelRepository;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Redirect;
 use Exception;
-
+use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
 {
@@ -18,6 +19,7 @@ class CommentController extends Controller
     {
         $this->IModelRepository = $IModelRepository;
         $this->Comment = new Comment();
+        $this->middleware('auth');
     }
 
     public function List(Request $params)
@@ -39,23 +41,23 @@ class CommentController extends Controller
         try {
             $response = Validator::make($params->all(), [
                 'comment' => 'required|string',
-                'post_id' => 'required|string'
+                'post_id' => 'required'
             ]);
 
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
-
             $data = $params->all();
+            $data['user_id'] = Auth::id();
             $data['Model'] = $this->Comment;
             $response = $this->IModelRepository->Insert($data);
 
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Insert OK");
+            return Redirect::action('PostController@Find',$data['post_id']);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
@@ -72,6 +74,8 @@ class CommentController extends Controller
             if ($response->fails()) {
                 return $this->SendError("Error", $response->errors(), 422);
             }
+            $this->authorize('update_delete', Comment::find($id));
+
             $data = array();
             $data['Entity']['id'] = $id;
             $data['Entity']['comment'] = $params->get('comment');
@@ -97,18 +101,19 @@ class CommentController extends Controller
             }
             $data = array();
             $data['id'] = $params->get('comment_id');
+            $this->authorize('update_delete', Comment::find($data['id']));
             $data['Model'] = $this->Comment;
             $response = $this->IModelRepository->Delete($data);
 
             if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
+                throw new Exception('Error');
             }
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Delete OK");
+            return Redirect::route('home');
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 

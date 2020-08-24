@@ -13,6 +13,4 @@ interface IRepository
     public function Delete($data);
 
     public function Find($data);
-    
-    public function Consult($data);
 }

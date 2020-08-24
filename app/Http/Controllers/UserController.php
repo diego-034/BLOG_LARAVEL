@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\User;
 use Illuminate\Http\Request;
 use App\Repositories\IRepository\IModelRepository;
 use Illuminate\Support\Facades\Validator;
@@ -17,6 +17,7 @@ class UserController extends Controller
     {
         $this->IModelRepository = $IModelRepository;
         $this->User = new User();
+        $this->middleware('auth');
     }
 
     public function List(Request $params)
@@ -78,6 +79,8 @@ class UserController extends Controller
             if ($response->fails()) {
                 return $this->SendError("Error", $response->errors(), 422);
             }
+            $this->authorize('update_delete', User::find($id));
+
             $data = array();
             $data['Entity']['id'] = $id;
             $data['Entity']['name'] = $params->get('name');
@@ -105,6 +108,8 @@ class UserController extends Controller
             }
             $data = array();
             $data['id'] = $params->get('user_id');
+            $this->authorize('update_delete', User::find($data['id']));
+
             $data['Model'] = $this->User;
             $response = $this->IModelRepository->Delete($data);
 
@@ -130,16 +135,9 @@ class UserController extends Controller
             $data['id'] = $id;
             $data['Model'] = $this->User;
             $response = $this->IModelRepository->Find($data);
-
-            if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
-            }
-            if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
-            }
-            return $this->SendResponse($response['OK'], "Find OK");
+            return view('profile')->with('response',$response);
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 }

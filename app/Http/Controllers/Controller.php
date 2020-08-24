@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Foundation\Validation\ValidatesRequests;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Routing\Controller as BaseController;
+
 
 class Controller extends BaseController
 {
@@ -19,12 +19,10 @@ class Controller extends BaseController
             "data" => $result,
             "message" => $message
         ];
-        $url = $this->GetRoute();
-        if (isset($url[0]) && $url[0] == "api") {
-            return response()->json($response, 200);
-        }
-        return $response;
+
+        return response()->json($response, 200);
     }
+
 
     public function SendError($error, $errorMessage = [], $code = 404)
     {
@@ -33,18 +31,6 @@ class Controller extends BaseController
             "error" => $error,
             "message" => $errorMessage
         ];
-        $url = $this->GetRoute();
-        if (isset($url[0]) && $url[0] == "api") {
-            return response()->json($response, 200);
-        }
-        return $response;
-    }
-
-    private function GetRoute()
-    {
-        $url = Route::getFacadeRoot()->current()->uri() == null ? "" : Route::getFacadeRoot()->current()->uri();
-        $url = str_replace('\/', ' ', $url);
-        $url = str_word_count($url, 1);
-        return $url;
+        return response()->json($response, 200);
     }
 }
