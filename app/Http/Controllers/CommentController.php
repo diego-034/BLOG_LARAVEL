@@ -55,7 +55,7 @@ class CommentController extends Controller
             if (isset($response['Error'])) {
                 throw new Exception('Error');
             }
-            return Redirect::action('PostController@Find',$data['post_id']);
+            return Redirect::action('PostController@Find', $data['post_id']);
         } catch (Exception $ex) {
             return view('error');
         }
@@ -65,14 +65,14 @@ class CommentController extends Controller
     {
         try {
             if ($id == null) {
-                return $this->SendError("Error", ["Null"], 422);
+                throw new Exception('Error');
             }
             $response = Validator::make($params->all(), [
                 'comment' => 'required|string'
             ]);
 
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
             $this->authorize('update_delete', Comment::find($id));
 
@@ -82,11 +82,11 @@ class CommentController extends Controller
             $data['Model'] = $this->Comment;
             $response = $this->IModelRepository->Update($data);
             if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
+                throw new Exception('Error');
             }
-            return $this->SendResponse($response['OK'], "Update OK");
+            return Redirect::action('PostController@Find',  $params->get('post_id'));
         } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
+            return view('error');
         }
     }
 
@@ -97,13 +97,37 @@ class CommentController extends Controller
                 'comment_id' => 'required|numeric'
             ]);
             if ($response->fails()) {
-                return $this->SendError("Error", $response->errors(), 422);
+                throw new Exception('Error');
             }
+    
+            $this->authorize('update_delete', Comment::find($params->get('comment_id')));
             $data = array();
             $data['id'] = $params->get('comment_id');
-            $this->authorize('update_delete', Comment::find($data['id']));
             $data['Model'] = $this->Comment;
             $response = $this->IModelRepository->Delete($data);
+
+            if ($response['OK'] == ['Not found']) {
+                throw new Exception('Error');
+            }
+            if (isset($response['Error'])) {
+                throw new Exception('Error');
+            }
+            return Redirect::action('PostController@Find', $params->get('post_id'));
+        } catch (Exception $ex) {
+            return view('error')->with("ex",$ex);
+        }
+    }
+
+    public function Find($id)
+    {
+        try {
+            if ($id == null) {
+                throw new Exception('Error');
+            }
+            $data = array();
+            $data['id'] = $id;
+            $data['Model'] = $this->Comment;
+            $response = $this->IModelRepository->Find($data);
 
             if ($response['OK'] == ['Not found']) {
                 throw new Exception('Error');
@@ -114,29 +138,6 @@ class CommentController extends Controller
             return Redirect::route('home');
         } catch (Exception $ex) {
             return view('error');
-        }
-    }
-
-    public function Find($id)
-    {
-        try {
-            if ($id == null) {
-                return $this->SendError("Error", ["Null"], 422);
-            }
-            $data = array();
-            $data['id'] = $id;
-            $data['Model'] = $this->Comment;
-            $response = $this->IModelRepository->Find($data);
-
-            if ($response['OK'] == ['Not found']) {
-                return $this->SendResponse(null, "Error");
-            }
-            if (isset($response['Error'])) {
-                return $this->SendError("Error", $response['Error']->getMessage(), 422);
-            }
-            return $this->SendResponse($response['OK'], "Find OK");
-        } catch (Exception $ex) {
-            return $this->SendError("Error", $ex->getMessage(), 422);
         }
     }
 }

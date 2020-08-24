@@ -46,7 +46,7 @@ class PostController extends Controller
             if ($response['OK'] == null) {
                 throw new Exception('Error');
             }
-            return view('home')->with('response', $response);
+            return view('home')->with('response', $response)->with('status', true);
         } catch (Exception $ex) {
             return view('error');
         }
@@ -133,7 +133,7 @@ class PostController extends Controller
             if (isset($response['Error'])) {
                 throw new Exception('Error');
             }
-            return Redirect::route('posts',['id'=>Auth::id()]);
+            return Redirect::route('posts', ['id' => Auth::id()]);
         } catch (Exception $ex) {
             return view('error');
         }
@@ -143,7 +143,7 @@ class PostController extends Controller
     {
         try {
             if ($id == null) {
-                return $this->SendError("Error", ["Null"], 422);
+                throw new Exception('Error');
             }
             $response['P'] = DB::table('posts')->join(
                 'users',
@@ -159,7 +159,14 @@ class PostController extends Controller
             ])->where('posts.id', '=', $id)->get();
 
             $response['C'] = DB::table('comments')->join('users', 'comments.user_id', '=', 'users.id')
-                ->select(['*'])->where('post_id', '=', $id)->get();
+                ->select([
+                    'comments.id as comment_id',
+                    'comments.user_id',
+                    'comments.comment',
+                    'users.name',
+                    'users.id as user_comment',
+
+                ])->where('post_id', '=', $id)->get();
 
             if ($response['P'] == null) {
                 throw new Exception('Error');
@@ -173,6 +180,9 @@ class PostController extends Controller
     public function Consult($id)
     {
         try {
+            if ($id != Auth::id()) {
+                return Redirect::route('posts', ['id' => Auth::id()]);
+            }
             $response['OK'] = DB::table('posts')
                 ->join(
                     'users',
